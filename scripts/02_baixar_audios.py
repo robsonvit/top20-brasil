@@ -1,24 +1,22 @@
 """
 Script 02 - Baixar áudios MP3 das músicas do Top 20
-Usa yt-dlp para buscar no YouTube e baixar somente o áudio.
+Usa yt-dlp (como biblioteca) para buscar no SoundCloud e baixar somente o áudio.
 Limita a 60 segundos por faixa (para evitar copyright no vídeo final).
 """
 import json
 import subprocess
 import time
 from pathlib import Path
+import yt_dlp
 
 OUTPUT_DIR = Path("output")
 AUDIO_DIR = OUTPUT_DIR / "audios"
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
-# Segundos de cada música no vídeo final
-DURACAO_POR_MUSICA = 30   # 30s × 20 = 10 min de vídeo (bom para YouTube)
-MAX_DURACAO_DOWNLOAD = 300  # baixa até 5 min para ter margem
-
+DURACAO_POR_MUSICA = 30   # 30s × 20 = 10 min de vídeo
 
 def buscar_e_baixar(artista: str, titulo: str, posicao: int) -> Path | None:
-    query = f"{artista} {titulo} official audio"
+    query = f"scsearch1:{artista} {titulo}"
     nome_arquivo = f"{posicao:02d}_{artista}_{titulo}"
     # Sanitizar nome de arquivo
     nome_arquivo = "".join(c if c.isalnum() or c in " _-" else "_" for c in nome_arquivo)
@@ -29,64 +27,41 @@ def buscar_e_baixar(artista: str, titulo: str, posicao: int) -> Path | None:
         print(f"  [{posicao:02d}] Já existe: {destino.name}")
         return destino
 
-    comandos_tentativas = [
-        # Tentativa 1: YouTube Music com bypass de cliente mobile
-        [
-            "yt-dlp",
-            "--extract-audio", "--audio-format", "mp3", "--audio-quality", "5",
-            "--match-filter", f"duration <= {MAX_DURACAO_DOWNLOAD}",
-            "--no-playlist", "--max-downloads", "1",
-            "--extractor-args", "youtube:player_client=android,web",
-            "--output", str(AUDIO_DIR / f"{nome_arquivo}.%(ext)s"),
-            "--quiet", "--no-warnings",
-            f"ytsearch1:{query} audio",
-        ],
-        # Tentativa 2: SoundCloud (não tem bloqueio de bot chato)
-        [
-            "yt-dlp",
-            "--extract-audio", "--audio-format", "mp3", "--audio-quality", "5",
-            "--match-filter", f"duration <= {MAX_DURACAO_DOWNLOAD}",
-            "--no-playlist", "--max-downloads", "1",
-            "--output", str(AUDIO_DIR / f"{nome_arquivo}.%(ext)s"),
-            "--quiet", "--no-warnings",
-            f"scsearch1:{query}",
-        ]
-    ]
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': str(AUDIO_DIR / f"{nome_arquivo}.%(ext)s"),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '128',
+        }],
+        'quiet': True,
+        'no_warnings': True,
+    }
 
-    sucesso = False
-    for i, cmd in enumerate(comandos_tentativas):
-        try:
-            print(f"  [{posicao:02d}] Tentativa {i+1}...")
-            # yt-dlp retorna 101 quando usa --max-downloads 1, então não checamos check=True restrito
-            subprocess.run(cmd, timeout=120)
-            if destino.exists():
-                sucesso = True
-                break
-        except subprocess.TimeoutExpired:
-            print(f"  [{posicao:02d}] TIMEOUT na tentativa {i+1}")
-        except Exception as e:
-            print(f"  [{posicao:02d}] ERRO na tentativa {i+1}: {e}")
-
-    if not sucesso:
-        print(f"  [{posicao:02d}] ERRO: Arquivo não gerado para: {titulo}")
-        return None
-
-    mp3 = destino
-    # Cortar para DURACAO_POR_MUSICA segundos
-    mp3_cortado = AUDIO_DIR / f"{nome_arquivo}_cut.mp3"
     try:
-        subprocess.run([
-            "ffmpeg", "-y", "-i", str(mp3),
-            "-t", str(DURACAO_POR_MUSICA),
-            "-acodec", "libmp3lame", "-q:a", "5",
-            str(mp3_cortado)
-        ], check=True, capture_output=True)
-        mp3.unlink()
-        mp3_cortado.rename(mp3)
-        print(f"  [{posicao:02d}] OK {titulo} ({DURACAO_POR_MUSICA}s)")
-        return mp3
+        print(f"  [{posicao:02d}] Buscando via SoundCloud...")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([query])
+            
+        if destino.exists():
+            # Cortar para DURACAO_POR_MUSICA segundos usando FFmpeg
+            mp3_cortado = AUDIO_DIR / f"{nome_arquivo}_cut.mp3"
+            subprocess.run([
+                "ffmpeg", "-y", "-i", str(destino),
+                "-t", str(DURACAO_POR_MUSICA),
+                "-acodec", "libmp3lame", "-q:a", "5",
+                str(mp3_cortado)
+            ], check=True, capture_output=True)
+            destino.unlink()
+            mp3_cortado.rename(destino)
+            print(f"  [{posicao:02d}] OK {titulo} ({DURACAO_POR_MUSICA}s)")
+            return destino
+        else:
+            print(f"  [{posicao:02d}] ERRO: Arquivo não gerado pelo yt-dlp.")
+            return None
     except Exception as e:
-        print(f"  [{posicao:02d}] Erro no FFmpeg: {e}")
+        print(f"  [{posicao:02d}] ERRO ao baixar '{titulo}': {e}")
         return None
 
 
@@ -95,7 +70,7 @@ def gerar_silencio(posicao: int, duracao: int) -> Path:
     dest = AUDIO_DIR / f"{posicao:02d}_silencio.mp3"
     subprocess.run([
         "ffmpeg", "-y", "-f", "lavfi",
-        "-i", f"anullsrc=r=44100:cl=stereo",
+        "-i", "anullsrc=r=44100:cl=stereo",
         "-t", str(duracao),
         "-acodec", "libmp3lame", str(dest)
     ], capture_output=True)
@@ -123,9 +98,8 @@ def main():
             print(f"  [{pos:02d}] Usando silêncio como fallback")
             caminho = gerar_silencio(pos, DURACAO_POR_MUSICA)
         arquivos.append(str(caminho))
-        time.sleep(3)  # pausa entre downloads
+        time.sleep(2)
 
-    # Salvar lista de arquivos de áudio
     mapa = {str(m["posicao"]): arquivos[i] for i, m in enumerate(musicas)}
     audio_map_path = OUTPUT_DIR / "audio_map.json"
     audio_map_path.write_text(json.dumps(mapa, ensure_ascii=False, indent=2))

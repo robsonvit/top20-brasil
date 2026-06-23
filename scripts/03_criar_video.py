@@ -343,33 +343,41 @@ def main():
     fontes = carregar_fontes()
     particulas = gerar_particulas()
 
-    # Limpar frames antigos
-    for f in FRAMES_DIR.glob("*.png"):
-        f.unlink()
+    print("Iniciando geração de frames e compressão direta via FFmpeg...")
 
-    # Gerar frames em lote
+    video_sem_audio = OUTPUT_DIR / "video_sem_audio.mp4"
+    
+    comando_ffmpeg = [
+        "ffmpeg", "-y",
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-s", f"{WIDTH}x{HEIGHT}",
+        "-pix_fmt", "rgb24",
+        "-r", str(FPS),
+        "-i", "-",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "26",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        str(video_sem_audio)
+    ]
+    
+    processo = subprocess.Popen(comando_ffmpeg, stdin=subprocess.PIPE)
+
     LOG_INTERVALO = FPS * 10  # log a cada 10s
     for fi in range(TOTAL_FRAMES):
         if fi % LOG_INTERVALO == 0:
             print(f"  Frame {fi}/{TOTAL_FRAMES} ({fi*100//TOTAL_FRAMES}%)")
 
         frame = gerar_frame(fi, musicas, mes_ano, particulas, fontes)
-        frame.save(FRAMES_DIR / f"frame_{fi:06d}.png")
+        processo.stdin.write(frame.tobytes())
 
-    print("Frames gerados. Compilando vídeo com FFmpeg...")
-
-    video_sem_audio = OUTPUT_DIR / "video_sem_audio.mp4"
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-framerate", str(FPS),
-        "-i", str(FRAMES_DIR / "frame_%06d.png"),
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "22",
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
-        str(video_sem_audio)
-    ], check=True)
+    processo.stdin.close()
+    processo.wait()
+    
+    if processo.returncode != 0:
+        raise RuntimeError("Erro ao executar FFmpeg.")
 
     print(f"Vídeo base criado: {video_sem_audio}")
 

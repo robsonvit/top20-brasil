@@ -29,46 +29,64 @@ def buscar_e_baixar(artista: str, titulo: str, posicao: int) -> Path | None:
         print(f"  [{posicao:02d}] Já existe: {destino.name}")
         return destino
 
-    cmd = [
-        "yt-dlp",
-        "--extract-audio",
-        "--audio-format", "mp3",
-        "--audio-quality", "5",          # 128kbps aprox
-        "--match-filter", f"duration <= {MAX_DURACAO_DOWNLOAD}",
-        "--no-playlist",
-        "--max-downloads", "1",
-        "--output", str(AUDIO_DIR / f"{nome_arquivo}.%(ext)s"),
-        "--quiet",
-        "--no-warnings",
-        f"ytsearch1:{query}",
+    comandos_tentativas = [
+        # Tentativa 1: YouTube Music com bypass de cliente mobile
+        [
+            "yt-dlp",
+            "--extract-audio", "--audio-format", "mp3", "--audio-quality", "5",
+            "--match-filter", f"duration <= {MAX_DURACAO_DOWNLOAD}",
+            "--no-playlist", "--max-downloads", "1",
+            "--extractor-args", "youtube:player_client=android,web",
+            "--output", str(AUDIO_DIR / f"{nome_arquivo}.%(ext)s"),
+            "--quiet", "--no-warnings",
+            f"ytsearch1:{query} audio",
+        ],
+        # Tentativa 2: SoundCloud (não tem bloqueio de bot chato)
+        [
+            "yt-dlp",
+            "--extract-audio", "--audio-format", "mp3", "--audio-quality", "5",
+            "--match-filter", f"duration <= {MAX_DURACAO_DOWNLOAD}",
+            "--no-playlist", "--max-downloads", "1",
+            "--output", str(AUDIO_DIR / f"{nome_arquivo}.%(ext)s"),
+            "--quiet", "--no-warnings",
+            f"scsearch1:{query}",
+        ]
     ]
 
-    try:
-        # yt-dlp returns 101 when using --max-downloads 1, so we don't use check=True
-        result = subprocess.run(cmd, timeout=120)
-        # yt-dlp pode gerar .mp3 diretamente ou .webm -> converter
-        mp3 = destino
-        if mp3.exists():
-            # Cortar para DURACAO_POR_MUSICA segundos
-            mp3_cortado = AUDIO_DIR / f"{nome_arquivo}_cut.mp3"
-            subprocess.run([
-                "ffmpeg", "-y", "-i", str(mp3),
-                "-t", str(DURACAO_POR_MUSICA),
-                "-acodec", "libmp3lame", "-q:a", "5",
-                str(mp3_cortado)
-            ], check=True, capture_output=True)
-            mp3.unlink()
-            mp3_cortado.rename(mp3)
-            print(f"  [{posicao:02d}] OK {titulo} ({DURACAO_POR_MUSICA}s)")
-            return mp3
-        else:
-            print(f"  [{posicao:02d}] ERRO: Arquivo não gerado para: {titulo}")
-            return None
-    except subprocess.CalledProcessError as e:
-        print(f"  [{posicao:02d}] ERRO ao baixar '{titulo}': {e}")
+    sucesso = False
+    for i, cmd in enumerate(comandos_tentativas):
+        try:
+            print(f"  [{posicao:02d}] Tentativa {i+1}...")
+            # yt-dlp retorna 101 quando usa --max-downloads 1, então não checamos check=True restrito
+            subprocess.run(cmd, timeout=120)
+            if destino.exists():
+                sucesso = True
+                break
+        except subprocess.TimeoutExpired:
+            print(f"  [{posicao:02d}] TIMEOUT na tentativa {i+1}")
+        except Exception as e:
+            print(f"  [{posicao:02d}] ERRO na tentativa {i+1}: {e}")
+
+    if not sucesso:
+        print(f"  [{posicao:02d}] ERRO: Arquivo não gerado para: {titulo}")
         return None
-    except subprocess.TimeoutExpired:
-        print(f"  [{posicao:02d}] TIMEOUT: {titulo}")
+
+    mp3 = destino
+    # Cortar para DURACAO_POR_MUSICA segundos
+    mp3_cortado = AUDIO_DIR / f"{nome_arquivo}_cut.mp3"
+    try:
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(mp3),
+            "-t", str(DURACAO_POR_MUSICA),
+            "-acodec", "libmp3lame", "-q:a", "5",
+            str(mp3_cortado)
+        ], check=True, capture_output=True)
+        mp3.unlink()
+        mp3_cortado.rename(mp3)
+        print(f"  [{posicao:02d}] OK {titulo} ({DURACAO_POR_MUSICA}s)")
+        return mp3
+    except Exception as e:
+        print(f"  [{posicao:02d}] Erro no FFmpeg: {e}")
         return None
 
 

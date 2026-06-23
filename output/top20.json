@@ -1,0 +1,126 @@
+{
+  "mes_ano": "Junho 2026",
+  "gerado_em": "2026-06-22T23:07:24.145730",
+  "musicas": [
+    {
+      "artista": "Mc Ryan SP",
+      "titulo": "Solteiro Forçado",
+      "fonte": "fallback",
+      "posicao": 1
+    },
+    {
+      "artista": "Ferrugem",
+      "titulo": "Mil Razões",
+      "fonte": "fallback",
+      "posicao": 2
+    },
+    {
+      "artista": "Gusttavo Lima",
+      "titulo": "Pagode em Alto Mar",
+      "fonte": "fallback",
+      "posicao": 3
+    },
+    {
+      "artista": "Wesley Safadão",
+      "titulo": "Camarote",
+      "fonte": "fallback",
+      "posicao": 4
+    },
+    {
+      "artista": "Léo Santana",
+      "titulo": "Zona de Perigo",
+      "fonte": "fallback",
+      "posicao": 5
+    },
+    {
+      "artista": "Anitta",
+      "titulo": "Funk Rave",
+      "fonte": "fallback",
+      "posicao": 6
+    },
+    {
+      "artista": "Matuê",
+      "titulo": "333",
+      "fonte": "fallback",
+      "posicao": 7
+    },
+    {
+      "artista": "Zé Vaqueiro",
+      "titulo": "Arrocha do Amor",
+      "fonte": "fallback",
+      "posicao": 8
+    },
+    {
+      "artista": "Simone Mendes",
+      "titulo": "Erro Gostoso",
+      "fonte": "fallback",
+      "posicao": 9
+    },
+    {
+      "artista": "Dennis DJ",
+      "titulo": "Tá OK",
+      "fonte": "fallback",
+      "posicao": 10
+    },
+    {
+      "artista": "Ludmilla",
+      "titulo": "Nessa Vida",
+      "fonte": "fallback",
+      "posicao": 11
+    },
+    {
+      "artista": "Xamã",
+      "titulo": "Coração",
+      "fonte": "fallback",
+      "posicao": 12
+    },
+    {
+      "artista": "Belo",
+      "titulo": "Inevitável",
+      "fonte": "fallback",
+      "posicao": 13
+    },
+    {
+      "artista": "Vitor Fernandes",
+      "titulo": "Leva Eu",
+      "fonte": "fallback",
+      "posicao": 14
+    },
+    {
+      "artista": "Mc Poze",
+      "titulo": "Tá Em Paz",
+      "fonte": "fallback",
+      "posicao": 15
+    },
+    {
+      "artista": "Dilsinho",
+      "titulo": "Sorte",
+      "fonte": "fallback",
+      "posicao": 16
+    },
+    {
+      "artista": "Péricles",
+      "titulo": "Não Faz Assim",
+      "fonte": "fallback",
+      "posicao": 17
+    },
+    {
+      "artista": "Grupo Menos é Mais",
+      "titulo": "Não Existe Amor em SP",
+      "fonte": "fallback",
+      "posicao": 18
+    },
+    {
+      "artista": "Thiaguinho",
+      "titulo": "Ousadia e Alegria",
+      "fonte": "fallback",
+      "posicao": 19
+    },
+    {
+      "artista": "Henrique e Juliano",
+      "titulo": "Fala Mal de Mim",
+      "fonte": "fallback",
+      "posicao": 20
+    }
+  ]
+}

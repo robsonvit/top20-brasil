@@ -1,0 +1,83 @@
+name: Top 20 Brasil - Semanal
+
+on:
+  schedule:
+    # Toda segunda-feira às 08:00 BRT (11:00 UTC)
+    - cron: '0 11 * * 1'
+  workflow_dispatch:
+    inputs:
+      mes_ano:
+        description: 'Mês/Ano do ranking (ex: Maio 2026)'
+        required: false
+        default: ''
+
+jobs:
+  gerar-e-postar-top20:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências do sistema (FFmpeg + fontes)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-liberation fonts-dejavu-core \
+            fontconfig imagemagick python3-pip
+          fc-cache -f -v
+
+      - name: Instalar dependências Python
+        run: |
+          pip install --upgrade pip
+          pip install \
+            yt-dlp \
+            google-api-python-client \
+            google-auth-httplib2 \
+            google-auth-oauthlib \
+            requests \
+            Pillow \
+            pytrends \
+            beautifulsoup4 \
+            lxml
+
+      - name: Buscar Top 20 músicas Brasil
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+        run: |
+          python scripts/01_buscar_top20.py
+
+      - name: Baixar áudios MP3
+        run: |
+          python scripts/02_baixar_audios.py
+
+      - name: Criar vídeo animado 16:9
+        run: |
+          python scripts/03_criar_video.py
+
+      - name: Mixar áudios no vídeo final
+        run: |
+          python scripts/04_mixar_audio_video.py
+
+      - name: Postar no YouTube
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          python scripts/05_postar_youtube.py
+
+      - name: Salvar relatório como artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: relatorio-top20-${{ github.run_number }}
+          path: |
+            output/relatorio.json
+            output/top20.json
+          retention-days: 30
